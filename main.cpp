@@ -1,5 +1,6 @@
 #include <iostream>
 #include <signal.h>
+#include <chrono>
 
 #include <SDL2/SDL.h>
 #include <SDL2pp/SDL.hh>
@@ -8,6 +9,8 @@
 
 #include "globals.hpp"
 #include "events.hpp"
+#include "player.hpp"
+#include "render.hpp"
 
 using namespace SDL2pp;
 
@@ -27,19 +30,20 @@ int main(int, char**) {
 
     Renderer renderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
+    auto t1 = std::chrono::system_clock::now(), t2 = t1;
+
     //main loop
     while (!globals::stop) {
+        // keep track of time to keep the game speed constant
+        t2 = std::chrono::system_clock::now();
+        globals::deltaTime = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() / 1000;
+        t1 = t2;
+
         handle_events();
+        
+        globals::player.doTick();
 
-        // render
-        renderer.SetDrawColor(0, 0, 0);
-        renderer.Clear();
-        renderer.SetDrawColor(255, 255, 0);
-        renderer.FillRect(120, 90, 520, 390);
-        renderer.Present();
-
-        // frame limit (handled by vsync now)
-        // SDL_Delay(1);
+        render(renderer);
     }
 
     return EXIT_SUCCESS;

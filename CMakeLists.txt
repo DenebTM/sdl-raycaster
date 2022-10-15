@@ -1,9 +1,10 @@
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 cmake_minimum_required(VERSION 3.0.0)
 project(sdlapp VERSION 0.1.0)
 
-set(SOURCES main.cpp events.cpp)
-set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
+set(CMAKE_BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+
+set(SOURCES main.cpp events.cpp player.cpp map.cpp render.cpp)
 add_executable(sdlapp ${SOURCES})
 
 # set(CPACK_PROJECT_NAME ${PROJECT_NAME})
