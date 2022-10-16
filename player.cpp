@@ -14,7 +14,10 @@ Player::Player(double x, double y) {
 }
 
 void Player::doTick() {
-    if (velX == 0 && velY == 0 && velA == 0) return;
+    if (fVel == 0 && sVel == 0 && aVel == 0) return;
+
+    double velX = fVel * sin(angle) + sVel * cos(angle),
+           velY = -fVel * cos(angle) + sVel * sin(angle);
 
     double newPosX = posX + velX * globals::deltaTime,
            newPosY = posY + velY * globals::deltaTime;
@@ -24,6 +27,6 @@ void Player::doTick() {
     if (!globals::map.checkCollision(posX, newPosY, PLAYER_SIZE))
         posY = newPosY;
 
-    if (velA >= 0.01 || velA <= -0.01)
-        angle = fmod(angle + M_PI * 2 + velA * globals::deltaTime, M_PI * 2);
+    if (aVel >= 0.01 || aVel <= -0.01)
+        angle = fmod(angle + M_PI * 2 + aVel * globals::deltaTime, M_PI * 2);
 }

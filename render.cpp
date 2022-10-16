@@ -4,15 +4,15 @@
 #include "globals.hpp"
 #include "player.hpp"
 
-#define MAP_SCALE 10
-#define MAP_POS_X 0
-#define MAP_POS_Y 350
-
 constexpr double FOV = 60 * M_PI / 180;
-#define COL_COUNT  640
-#define COL_HEIGHT 350
-#define PLAYER_PROJPLANE_DIST 554
-constexpr double wallProjMult = (double)PLAYER_PROJPLANE_DIST / COL_COUNT;
+#define COL_COUNT  800
+#define COL_HEIGHT 500
+#define PLAYER_PROJPLANE_DIST 554.0
+#define WALLHEIGHT 200.0
+
+#define MAP_SCALE 4
+#define MAP_POS_X 0
+#define MAP_POS_Y COL_HEIGHT
 
 // angular ray offsets aren't consistent across the entire screen,
 // so all angles are pre-calculated
@@ -25,9 +25,15 @@ void fillRayAngles() {
     }
 }
 
+typedef struct ray_ret {
+    double rayDist;
+    bool NS_wall;
+} ray;
+
 void drawPlayer(SDL2pp::Renderer& renderer);
 void drawMap(SDL2pp::Renderer& renderer);
-double castRay(const double posX, const double posY, double angle);
+void drawScreen(SDL2pp::Renderer& renderer);
+ray castRay(const double posX, const double posY, double angle);
 
 void render(SDL2pp::Renderer& renderer) {
     renderer.SetDrawColor(0, 0, 0);
@@ -35,16 +41,7 @@ void render(SDL2pp::Renderer& renderer) {
 
     drawMap(renderer);
     drawPlayer(renderer);
-
-    renderer.SetDrawColor(SDL_Color{255, 0, 0});
-    fillRayAngles();
-    for (int i = 0; i < COL_COUNT; i++) {
-        const double rayAngle = globals::player.angle + rayAngles[i];
-        double rayDist = castRay(globals::player.posX, globals::player.posY, rayAngle);
-        renderer.DrawLine(MAP_POS_X + globals::player.posX * MAP_SCALE, MAP_POS_Y + globals::player.posY * MAP_SCALE,
-            MAP_POS_X + (globals::player.posX + rayDist * sin(rayAngle)) * MAP_SCALE,
-            MAP_POS_Y + (globals::player.posY - rayDist * cos(rayAngle)) * MAP_SCALE);
-    }
+    drawScreen(renderer);
 
     renderer.Present();
 }
@@ -90,8 +87,36 @@ void drawMap(SDL2pp::Renderer& renderer) {
     renderer.DrawRect(SDL2pp::Rect{MAP_POS_X, MAP_POS_Y, MAP_SCALE * map.width - 1, MAP_SCALE * map.height - 1});
 }
 
+void drawScreen(SDL2pp::Renderer& renderer) {
+    renderer.SetDrawColor(SDL_Color{20, 20, 20});
+    renderer.FillRect(SDL_Rect{0, 0, COL_COUNT, COL_HEIGHT/2});
+    renderer.SetDrawColor(SDL_Color{40, 40, 40});
+    renderer.FillRect(SDL_Rect{0, COL_HEIGHT/2, COL_COUNT, COL_HEIGHT/2});
+
+    fillRayAngles();
+    for (int i = 0; i < COL_COUNT; i++) {
+        using namespace globals;
+        const double rayAngle = player.angle + rayAngles[i];
+        ray r = castRay(player.posX, player.posY, rayAngle);
+    
+        renderer.SetDrawColor(SDL_Color{255, 0, 0});
+        renderer.DrawLine(MAP_POS_X + player.posX * MAP_SCALE, MAP_POS_Y + player.posY * MAP_SCALE,
+            MAP_POS_X + (player.posX + r.rayDist * sin(rayAngle)) * MAP_SCALE,
+            MAP_POS_Y + (player.posY - r.rayDist * cos(rayAngle)) * MAP_SCALE);
+
+        int wallHeight = (WALLHEIGHT / r.rayDist) * 2 / cos(rayAngles[i]);
+        if (r.NS_wall) {
+            renderer.SetDrawColor(SDL_Color{80, 80, 80});
+        } else {
+            renderer.SetDrawColor(SDL_Color{120, 120, 120});
+        }
+        if (wallHeight > COL_HEIGHT) wallHeight = COL_HEIGHT;
+        renderer.DrawLine(i, (COL_HEIGHT - wallHeight) / 2, i, (COL_HEIGHT + wallHeight) / 2);
+    }
+}
+
 // returns distance to the nearest wall
-double castRay(const double posX, const double posY, double angle) {
+ray castRay(const double posX, const double posY, double angle) {
     while (angle < 0) angle += M_PI * 2;
     angle = fmod(angle, M_PI * 2);
 
@@ -147,5 +172,8 @@ double castRay(const double posX, const double posY, double angle) {
         if (rayDistVert > 1000) rayDistVert = 1000;
     }
     
-    return (rayDistHoriz < rayDistVert) ? rayDistHoriz : rayDistVert;
+    return {
+        rayDist: (rayDistHoriz < rayDistVert) ? rayDistHoriz : rayDistVert,
+        NS_wall: rayDistHoriz < rayDistVert
+    };
 }

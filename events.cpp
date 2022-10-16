@@ -29,22 +29,22 @@ int handle_events() {
 
                 switch (event.key.keysym.scancode) {
                     case SDL_SCANCODE_W:
-                        globals::player.velY -= PLAYER_VELOCITY_BASE;
+                        globals::player.fVel += PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_A:
-                        globals::player.velX -= PLAYER_VELOCITY_BASE;
+                        globals::player.sVel -= PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_S:
-                        globals::player.velY += PLAYER_VELOCITY_BASE;
+                        globals::player.fVel -= PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_D:
-                        globals::player.velX += PLAYER_VELOCITY_BASE;
+                        globals::player.sVel += PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_LEFT:
-                        globals::player.velA -= M_PI;
+                        globals::player.aVel -= PLAYER_ANGVEL_BASE;
                         break;
                     case SDL_SCANCODE_RIGHT:
-                        globals::player.velA += M_PI;
+                        globals::player.aVel += PLAYER_ANGVEL_BASE;
                         break;
 
                     default:
@@ -55,22 +55,22 @@ int handle_events() {
                 std::cout << "Key released:   " << SDL_GetKeyName(event.key.keysym.sym) << "\n";
                 switch (event.key.keysym.scancode) {
                     case SDL_SCANCODE_W:
-                        globals::player.velY += PLAYER_VELOCITY_BASE;
+                        globals::player.fVel -= PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_A:
-                        globals::player.velX += PLAYER_VELOCITY_BASE;
+                        globals::player.sVel += PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_S:
-                        globals::player.velY -= PLAYER_VELOCITY_BASE;
+                        globals::player.fVel += PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_D:
-                        globals::player.velX -= PLAYER_VELOCITY_BASE;
+                        globals::player.sVel -= PLAYER_VELOCITY_BASE;
                         break;
                     case SDL_SCANCODE_LEFT:
-                        globals::player.velA += M_PI;
+                        globals::player.aVel += PLAYER_ANGVEL_BASE;
                         break;
                     case SDL_SCANCODE_RIGHT:
-                        globals::player.velA -= M_PI;
+                        globals::player.aVel -= PLAYER_ANGVEL_BASE;
                         break;
 
                     default:
