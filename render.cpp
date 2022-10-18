@@ -4,30 +4,21 @@
 #include "globals.hpp"
 #include "player.hpp"
 
-constexpr double FOV = 60 * M_PI / 180;
-#define COL_COUNT  800
-#define COL_HEIGHT 500
-#define PLAYER_PROJPLANE_DIST 554.0
-#define WALLHEIGHT 200.0
-
-#define MAP_SCALE 4
-#define MAP_POS_X 0
-#define MAP_POS_Y COL_HEIGHT
-
 // angular ray offsets aren't consistent across the entire screen,
 // so all angles are pre-calculated
 double rayAngles[COL_COUNT] = { 0.0 };
 void fillRayAngles() {
-    if (rayAngles[0] != 0) return;
     for (int i = 0; i < COL_COUNT; i++) {
         double l = -(COL_COUNT / 2) + 0.5 + i;
         rayAngles[i] = atan(l / PLAYER_PROJPLANE_DIST);
     }
 }
 
+enum wall { N, E, S, W };
 typedef struct ray_ret {
     double rayDist;
-    bool NS_wall;
+    wall wallDir;
+    int texturePos;
 } ray;
 
 void drawPlayer(SDL2pp::Renderer& renderer);
@@ -93,7 +84,6 @@ void drawScreen(SDL2pp::Renderer& renderer) {
     renderer.SetDrawColor(SDL_Color{40, 40, 40});
     renderer.FillRect(SDL_Rect{0, COL_HEIGHT/2, COL_COUNT, COL_HEIGHT/2});
 
-    fillRayAngles();
     for (int i = 0; i < COL_COUNT; i++) {
         using namespace globals;
         const double rayAngle = player.angle + rayAngles[i];
@@ -105,10 +95,12 @@ void drawScreen(SDL2pp::Renderer& renderer) {
             MAP_POS_Y + (player.posY - r.rayDist * cos(rayAngle)) * MAP_SCALE);
 
         int wallHeight = (WALLHEIGHT / r.rayDist) * 2 / cos(rayAngles[i]);
-        if (r.NS_wall) {
-            renderer.SetDrawColor(SDL_Color{80, 80, 80});
-        } else {
-            renderer.SetDrawColor(SDL_Color{120, 120, 120});
+        switch (r.wallDir) {
+            case N: case S:
+                renderer.SetDrawColor(SDL_Color{80, 80, 80});
+                break;
+            default: 
+                renderer.SetDrawColor(SDL_Color{120, 120, 120});
         }
         if (wallHeight > COL_HEIGHT) wallHeight = COL_HEIGHT;
         renderer.DrawLine(i, (COL_HEIGHT - wallHeight) / 2, i, (COL_HEIGHT + wallHeight) / 2);
@@ -120,11 +112,14 @@ ray castRay(const double posX, const double posY, double angle) {
     while (angle < 0) angle += M_PI * 2;
     angle = fmod(angle, M_PI * 2);
 
+    double rayStepX, rayStepY,
+           rayPosFinalX, rayPosFinalY;
+
     // find horizontal walls
     double rayDistHoriz = INFINITY;
     if (angle != M_PI_2 && angle != M_PI + M_PI_2) {
-        double rayStepY = (angle < M_PI_2 || angle > M_PI + M_PI_2) ? -1 : 1,
-               rayStepX = -rayStepY * tan(angle);
+        rayStepY = (angle < M_PI_2 || angle > M_PI + M_PI_2) ? -1 : 1;
+        rayStepX = -rayStepY * tan(angle);
         
         double stepInitialY = rayStepY < 0 ? fmod(-posY, 1) : 1 - fmod(posY, 1),
                stepInitialX = rayStepX * stepInitialY / rayStepY;
@@ -143,14 +138,14 @@ ray castRay(const double posX, const double posY, double angle) {
         const double rayDistHorizX = rayPosX - posX,
                      rayDistHorizY = rayPosY - posY;
         rayDistHoriz = sqrt(pow(rayDistHorizX, 2) + pow(rayDistHorizY, 2));
-        if (rayDistHoriz > 1000) rayDistHoriz = 1000;
+        rayPosFinalX = rayPosX;
     }
 
     // find vertical walls
     double rayDistVert = INFINITY;
     if (angle != 0 && angle != M_PI) {
-        double rayStepX = (angle < M_PI) ? 1 : -1,
-               rayStepY = -rayStepX / tan(angle);
+        rayStepX = (angle < M_PI) ? 1 : -1;
+        rayStepY = -rayStepX / tan(angle);
         
         double stepInitialX = rayStepX < 0 ? fmod(-posX, 1) : 1 - fmod(posX, 1),
                stepInitialY = rayStepY * stepInitialX / rayStepX;
@@ -169,11 +164,27 @@ ray castRay(const double posX, const double posY, double angle) {
         const double rayDistVertX = rayPosX - posX,
                      rayDistVertY = rayPosY - posY;
         rayDistVert = sqrt(pow(rayDistVertX, 2) + pow(rayDistVertY, 2));
-        if (rayDistVert > 1000) rayDistVert = 1000;
+        rayPosFinalY = rayPosY;
+    }
+
+    double rayDist;
+    wall dir;
+    int pos;
+    if (rayDistHoriz < rayDistVert) {
+        rayDist = rayDistHoriz;
+        dir = rayStepY < 0 ? N : S;
+        pos = fmod(rayPosFinalX, 1) * TEXTURE_RES;
+        if (dir == S) pos = TEXTURE_RES - pos;
+    } else {
+        rayDist = rayDistVert;
+        dir = rayStepX < 0 ? W : E;
+        pos = fmod(rayPosFinalY, 1) * TEXTURE_RES;
+        if (dir == W) pos = TEXTURE_RES - pos;
     }
     
     return {
-        rayDist: (rayDistHoriz < rayDistVert) ? rayDistHoriz : rayDistVert,
-        NS_wall: rayDistHoriz < rayDistVert
+        .rayDist = rayDist,
+        .wallDir = dir,
+        .texturePos = pos
     };
 }

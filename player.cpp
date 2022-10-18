@@ -22,10 +22,14 @@ void Player::doTick() {
     double newPosX = posX + velX * globals::deltaTime,
            newPosY = posY + velY * globals::deltaTime;
     
-    if (!globals::map.checkCollision(newPosX, posY, PLAYER_SIZE))
-        posX = newPosX;
-    if (!globals::map.checkCollision(posX, newPosY, PLAYER_SIZE))
-        posY = newPosY;
+    while (globals::map.checkCollision(newPosX, posY, PLAYER_SIZE)) {
+        newPosX -= (velX * globals::deltaTime) / 10;
+    }
+    posX = newPosX;
+    while (globals::map.checkCollision(posX, newPosY, PLAYER_SIZE)) {
+        newPosY -= (velY * globals::deltaTime) / 10;
+    }
+    posY = newPosY;
 
     if (aVel >= 0.01 || aVel <= -0.01)
         angle = fmod(angle + M_PI * 2 + aVel * globals::deltaTime, M_PI * 2);

@@ -29,15 +29,18 @@ int main(int, char**) {
         SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     Renderer renderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    fillRayAngles();
 
     auto t1 = std::chrono::system_clock::now(), t2 = t1;
 
     //main loop
     while (!globals::stop) {
         // keep track of time to keep the game speed constant
-        t2 = std::chrono::system_clock::now();
-        globals::deltaTime = (double)std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() / 1000;
-        t1 = t2;
+        { using namespace std::chrono;
+            t2 = system_clock::now();
+            globals::deltaTime = (double)duration_cast<milliseconds>(t2 - t1).count() / 1000;
+            t1 = t2;
+        }
 
         handle_events();
         
