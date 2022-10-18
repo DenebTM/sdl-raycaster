@@ -16,8 +16,8 @@ Player::Player(double x, double y) {
 void Player::doTick() {
     if (fVel == 0 && sVel == 0 && aVel == 0) return;
 
-    double velX = fVel * sin(angle) + sVel * cos(angle),
-           velY = -fVel * cos(angle) + sVel * sin(angle);
+    double velX = (fVel * sin(angle) + sVel * cos(angle)) * velMult,
+           velY = (-fVel * cos(angle) + sVel * sin(angle)) * velMult;
 
     double newPosX = posX + velX * globals::deltaTime,
            newPosY = posY + velY * globals::deltaTime;
@@ -32,5 +32,5 @@ void Player::doTick() {
     posY = newPosY;
 
     if (aVel >= 0.01 || aVel <= -0.01)
-        angle = fmod(angle + M_PI * 2 + aVel * globals::deltaTime, M_PI * 2);
+        angle = fmod(angle + M_PI * 2 + aVel * velMult * globals::deltaTime, M_PI * 2);
 }
