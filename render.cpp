@@ -17,19 +17,23 @@ namespace GameRenderer {
         wall wallDir;
         char texturePos;
     } ray;
+
+    SDL2pp::Renderer* mainRenderer;
     
     void fillRayAngles();
-    void loadTextures(SDL2pp::Renderer& renderer);
-    void drawStatusBar(SDL2pp::Renderer& renderer);
-    void drawPlayer(SDL2pp::Renderer& renderer);
-    void drawMap(SDL2pp::Renderer& renderer);
-    void drawColumn(SDL2pp::Renderer& renderer, int x, int height, char texturePos, char texture);
-    void drawScreen(SDL2pp::Renderer& renderer);
+    void loadTextures();
+    void drawStatusBar();
+    void drawPlayer();
+    void drawMap();
+    void drawColumn(int x, int height, char texturePos, char texture);
+    void drawScreen();
     ray castRay(const double posX, const double posY, double angle);
 
     void init(SDL2pp::Renderer& renderer) {
+        mainRenderer = &renderer;
+
         fillRayAngles();
-        loadTextures(renderer);
+        loadTextures();
     }
 
     // angular ray offsets aren't consistent across the entire screen,
@@ -44,7 +48,7 @@ namespace GameRenderer {
 
     std::vector<std::string> texPaths;
     std::vector<SDL2pp::Texture> textures;
-    void loadTextures(SDL2pp::Renderer& renderer) {
+    void loadTextures() {
         namespace fs = std::filesystem;
         std::string texBasePath = "./textures";
 
@@ -55,84 +59,85 @@ namespace GameRenderer {
         std::sort(texPaths.begin(), texPaths.end());
 
         for (const auto path : texPaths)
-            textures.push_back(SDL2pp::Texture{renderer, path});
+            textures.push_back(SDL2pp::Texture{*mainRenderer, path});
     }
 
-    void render(SDL2pp::Renderer& renderer) {
-        renderer.SetDrawColor(0, 0, 0);
-        renderer.Clear();
+    void render() {
+        mainRenderer->SetDrawColor(0, 0, 0);
+        mainRenderer->Clear();
 
-        drawScreen(renderer);
-        drawStatusBar(renderer);
+        drawScreen();
+        drawStatusBar();
 
-        renderer.Present();
+        mainRenderer->Present();
     }
 
-    void drawStatusBar(SDL2pp::Renderer& renderer) {
-        renderer.SetDrawColor(SDL_Color{0, 0, 0});
-        renderer.FillRect(SDL_Rect{0, COL_HEIGHT, COL_COUNT, 100});
-        drawMap(renderer);
-        drawPlayer(renderer);
+    void drawStatusBar() {
+        mainRenderer->SetDrawColor(SDL_Color{0, 0, 0});
+        mainRenderer->FillRect(SDL_Rect{0, COL_HEIGHT, COL_COUNT, 100});
+        drawMap();
+        drawPlayer();
     }
 
-    void drawPlayer(SDL2pp::Renderer& renderer) {
+    void drawPlayer() {
         using namespace globals;
-        const auto oldDrawColor = renderer.GetDrawColor();
+        const auto oldDrawColor = mainRenderer->GetDrawColor();
         
-        renderer.SetDrawColor(255, 255, 0);
-        renderer.FillRect(SDL2pp::Rect{
+        mainRenderer->SetDrawColor(255, 255, 0);
+        mainRenderer->FillRect(SDL2pp::Rect{
             MAP_POS_X + (int)((player.posX - PLAYER_SIZE / 2) * MAP_SCALE),
             MAP_POS_Y + (int)((player.posY - PLAYER_SIZE / 2) * MAP_SCALE),
             (int)(PLAYER_SIZE * MAP_SCALE), (int)(PLAYER_SIZE * MAP_SCALE)
         });
-        renderer.SetDrawColor(oldDrawColor);
+        mainRenderer->SetDrawColor(oldDrawColor);
     }
 
-    void drawMap(SDL2pp::Renderer& renderer) {
+    void drawMap() {
         using namespace globals;
-        const auto oldDrawColor = renderer.GetDrawColor();
+        const auto oldDrawColor = mainRenderer->GetDrawColor();
 
         for (int y = 0; y < map.height; y++) {
             for (int x = 0; x < map.width; x++) {
                 switch (map.tiles[x][y]) {
                     case 0:
-                        renderer.SetDrawColor(0, 0, 0);
+                        mainRenderer->SetDrawColor(0, 0, 0);
                         break;
                     case 1:
-                        renderer.SetDrawColor(127, 127, 127);
+                        mainRenderer->SetDrawColor(127, 127, 127);
                         break;
                     default:
-                        renderer.SetDrawColor(255, 0, 255);
+                        mainRenderer->SetDrawColor(255, 0, 255);
                         break;
                 }
 
-                renderer.FillRect(SDL2pp::Rect{
+                mainRenderer->FillRect(SDL2pp::Rect{
                     MAP_POS_X + MAP_SCALE * x,
                     MAP_POS_Y + MAP_SCALE * y,
                     MAP_SCALE, MAP_SCALE
                 });
             }
         }
-        renderer.DrawRect(SDL2pp::Rect{MAP_POS_X, MAP_POS_Y, MAP_SCALE * map.width - 1, MAP_SCALE * map.height - 1});
+        mainRenderer->DrawRect(SDL2pp::Rect{MAP_POS_X, MAP_POS_Y, MAP_SCALE * map.width - 1, MAP_SCALE * map.height - 1});
+        mainRenderer->SetDrawColor(oldDrawColor);
     }
 
-    void drawColumn(SDL2pp::Renderer& renderer, int x, int h, char texturePos, char textureId) {
+    void drawColumn(int x, int h, char texturePos, char textureId) {
         // if (h > COL_HEIGHT) h = COL_HEIGHT;
-        renderer.Copy(textures.at(textureId), SDL_Rect{texturePos, 0, 1, 64}, SDL_Rect{x, (COL_HEIGHT - h) / 2, 1, h});
+        mainRenderer->Copy(textures.at(textureId), SDL_Rect{texturePos, 0, 1, 64}, SDL_Rect{x, (COL_HEIGHT - h) / 2, 1, h});
     }
 
-    void drawScreen(SDL2pp::Renderer& renderer) {
-        renderer.SetDrawColor(SDL_Color{20, 20, 20});
-        renderer.FillRect(SDL_Rect{0, 0, COL_COUNT, COL_HEIGHT/2});
-        renderer.SetDrawColor(SDL_Color{40, 40, 40});
-        renderer.FillRect(SDL_Rect{0, COL_HEIGHT/2, COL_COUNT, COL_HEIGHT/2});
+    void drawScreen() {
+        mainRenderer->SetDrawColor(SDL_Color{20, 20, 20});
+        mainRenderer->FillRect(SDL_Rect{0, 0, COL_COUNT, COL_HEIGHT/2});
+        mainRenderer->SetDrawColor(SDL_Color{40, 40, 40});
+        mainRenderer->FillRect(SDL_Rect{0, COL_HEIGHT/2, COL_COUNT, COL_HEIGHT/2});
 
         for (int x = 0; x < COL_COUNT; x++) {
             using namespace globals;
             const double rayAngle = player.angle + rayAngles[x];
             ray r = castRay(player.posX, player.posY, rayAngle);
             int wallHeight = (WALLHEIGHT / r.rayDist) * 2.7754 / cos(rayAngles[x]);
-            drawColumn(renderer, x, wallHeight, r.texturePos, 0 + (r.wallDir >= E));
+            drawColumn(x, wallHeight, r.texturePos, 0 + (r.wallDir >= E));
         }
     }
 

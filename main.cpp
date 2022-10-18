@@ -46,7 +46,7 @@ int main(int, char**) {
         
         globals::player.doTick();
 
-        GameRenderer::render(renderer);
+        GameRenderer::render();
     }
 
     return EXIT_SUCCESS;

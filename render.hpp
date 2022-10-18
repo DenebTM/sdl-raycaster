@@ -13,5 +13,5 @@
 
 namespace GameRenderer {
     void init(SDL2pp::Renderer& renderer);
-    void render(SDL2pp::Renderer& renderer);
+    void render();
 }
