@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.0.0)
 project(sdlapp VERSION 0.1.0)
 
 set(CMAKE_BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
+set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
 
 set(SOURCES main.cpp events.cpp player.cpp map.cpp render.cpp)
 add_executable(sdlapp ${SOURCES})

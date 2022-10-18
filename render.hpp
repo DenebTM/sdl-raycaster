@@ -1,9 +1,5 @@
 #pragma once
 
-#include <SDL2/SDL.h>
-#include <SDL2pp/Renderer.hh>
-#include <SDL2pp/Rect.hh>
-
 #define COL_COUNT  800
 #define COL_HEIGHT 500
 #define PLAYER_PROJPLANE_DIST 554.0
@@ -15,6 +11,7 @@
 
 #define TEXTURE_RES 64
 
-void fillRayAngles();
-
-void render(SDL2pp::Renderer& renderer);
+namespace GameRenderer {
+    void init(SDL2pp::Renderer& renderer);
+    void render(SDL2pp::Renderer& renderer);
+}

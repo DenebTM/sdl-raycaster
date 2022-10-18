@@ -29,7 +29,7 @@ int main(int, char**) {
         SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
 
     Renderer renderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    fillRayAngles();
+    GameRenderer::init(renderer);
 
     auto t1 = std::chrono::system_clock::now(), t2 = t1;
 
@@ -46,7 +46,7 @@ int main(int, char**) {
         
         globals::player.doTick();
 
-        render(renderer);
+        GameRenderer::render(renderer);
     }
 
     return EXIT_SUCCESS;
