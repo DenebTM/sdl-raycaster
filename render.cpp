@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <SDL2pp/Texture.hh>
+#include <SDL2pp/Surface.hh>
 #include <SDL2pp/Point.hh>
 
 #include "render.hpp"
@@ -15,8 +16,13 @@ namespace GameRenderer {
     typedef struct ray_ret {
         double rayDist;
         wall wallDir;
-        char texturePos;
+        uint8_t texturePos;
     } ray;
+    typedef struct floor_ray_ret {
+        int tileHit;
+        uint8_t textureX;
+        uint8_t textureY;
+    } floor_ray;
 
     SDL2pp::Renderer* mainRenderer;
     bool resized = false, firstRun = true;
@@ -27,14 +33,19 @@ namespace GameRenderer {
     double FOV = M_PI / 3 /* 60° */,
            projplaneDist = (colCount / 2) / tan(FOV/2);
     
+    std::vector<double> rayAngles;
     void fillRayAngles();
+    std::vector<double> rayAnglesVert;
+    void fillRayAnglesVert();
     void loadTextures();
     void drawStatusBar();
     void drawPlayer();
     void drawMap();
-    void drawColumn(int x, int height, char texturePos, char texture);
+    void drawFloor();
+    void drawWall(int x, int height, char texturePos, char texture);
     void drawScreen();
     ray castRay(const double posX, const double posY, double angle);
+    floor_ray castFloorRay(const double posX, const double posY, double angleH, double angleV);
 
     void init(SDL2pp::Renderer& renderer) {
         if (firstRun) {
@@ -49,17 +60,26 @@ namespace GameRenderer {
         FOV = (double)colCount / colHeight * 0.655;
         projplaneDist = (colCount / 2) / tan(FOV/2);
         fillRayAngles();
+        fillRayAnglesVert();
     }
 
     // angular ray offsets aren't consistent across the entire screen,
     // so all angles are pre-calculated
-    std::vector<double> rayAngles;
     void fillRayAngles() {
         rayAngles.clear();
         rayAngles.reserve(colCount);
         for (int i = 0; i < colCount; i++) {
             double l = -(colCount / 2) + 0.5 + i;
             rayAngles[i] = atan(l / projplaneDist);
+        }
+    }
+
+    void fillRayAnglesVert() {
+        rayAnglesVert.clear();
+        rayAnglesVert.reserve(colHeight/2);
+        for (int i = 0; i < colHeight/2; i++) {
+            double h = 0.5 + i;
+            rayAnglesVert[i] = atan(h / projplaneDist);
         }
     }
 
@@ -145,8 +165,34 @@ namespace GameRenderer {
         mainRenderer->SetDrawColor(oldDrawColor);
     }
 
-    void drawColumn(int x, int h, char texturePos, char textureId) {
-        // if (h > colHeight) h = colHeight;
+    void drawFloor() {
+        using namespace globals;
+
+        const int surfHeight = colHeight/2;
+        Uint32 floorPixels[surfHeight][colCount];
+        for (int y = 0; y < surfHeight; y++) {
+            for (int x = 0; x < colCount; x++) {
+                floor_ray r = castFloorRay(player.posX, player.posY,
+                    player.angle + rayAngles[x], rayAnglesVert[y]);
+
+                Uint32 color = 0xff000000;
+                if (r.textureX >= 16)
+                    color = 0x00ff0000;
+                if (r.textureX >= 32)
+                    color = 0x0000ff00;
+                if (r.textureX >= 48)
+                    color = 0xffff0000;
+                
+                floorPixels[y][x] = color;
+            }
+        }
+
+        SDL2pp::Surface floorSurf(&floorPixels, colCount, surfHeight, 32, 4*colCount, 0xff000000, 0x00ff0000, 0x0000ff00, 0);
+        SDL2pp::Texture tex(*mainRenderer, floorSurf);
+        mainRenderer->Copy(tex, SDL2pp::NullOpt, SDL_Point{0, surfHeight});
+    }
+
+    void drawWall(int x, int h, char texturePos, char textureId) {
         mainRenderer->Copy(textures[textureId], SDL_Rect{texturePos, 0, 1, 64}, SDL_Rect{x, (colHeight - h) / 2, 1, h});
     }
 
@@ -156,12 +202,13 @@ namespace GameRenderer {
         mainRenderer->SetDrawColor(SDL_Color{40, 40, 40});
         mainRenderer->FillRect(SDL_Rect{0, colHeight/2, colCount, colHeight/2});
 
+        drawFloor();
         for (int x = 0; x < colCount; x++) {
             using namespace globals;
             const double rayAngle = player.angle + rayAngles[x];
             ray r = castRay(player.posX, player.posY, rayAngle);
             int wallHeight = projplaneDist / r.rayDist / cos(rayAngles[x]);
-            drawColumn(x, wallHeight, r.texturePos, 0 + (r.wallDir >= E));
+            drawWall(x, wallHeight, r.texturePos, 0 + (r.wallDir >= E));
         }
     }
 
@@ -227,7 +274,7 @@ namespace GameRenderer {
 
         double rDist;
         wall wDir;
-        char tPos;
+        uint8_t tPos;
         if (rayDistHoriz < rayDistVert) {
             rDist = rayDistHoriz;
             wDir = rayStepY < 0 ? N : S;
@@ -244,6 +291,32 @@ namespace GameRenderer {
             .rayDist = rDist,
             .wallDir = wDir,
             .texturePos = tPos
+        };
+    }
+
+    floor_ray castFloorRay(const double posX, const double posY, double angleH, double angleV) {
+        using namespace globals;
+
+        double d  = (0.5 / tan(angleV)) / cos(angleH - player.angle);
+        double dx = d * sin(angleH),
+               dy = d * cos(angleH);
+        
+        double ix = posX + dx,
+               iy = posY + dy;
+
+        int tile = -1;
+        if (ix >= 0 && ix < map.width && iy >= 0 && iy < map.height)
+            tile = map.tiles[(int)ix][(int)iy];
+
+        uint8_t tx = fmod(ix, 1) * 64,
+                ty = fmod(iy, 1) * 64;
+        if (tx < 0) tx += 64;
+        if (ty < 0) ty += 64;
+        
+        return {
+            .tileHit = tile,
+            .textureX = tx,
+            .textureY = ty
         };
     }
 }

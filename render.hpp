@@ -3,8 +3,6 @@
 #include <SDL2/SDL.h>
 #include <SDL2pp/Renderer.hh>
 
-#define WALLHEIGHT 200.0
-
 #define MAP_SCALE 4
 #define MAP_POS_X 0
 #define MAP_POS_Y colHeight
