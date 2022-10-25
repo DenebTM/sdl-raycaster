@@ -84,6 +84,7 @@ namespace GameRenderer {
 
     std::vector<std::string> texPaths;
     std::vector<SDL2pp::Texture> textures;
+    std::vector<SDL2pp::Surface> texturesPix;
     void loadTextures() {
         namespace fs = std::filesystem;
         std::string texBasePath = "./textures";
@@ -94,8 +95,10 @@ namespace GameRenderer {
 
         std::sort(texPaths.begin(), texPaths.end());
 
-        for (const auto path : texPaths)
+        for (const auto path : texPaths) {
             textures.push_back(SDL2pp::Texture{*mainRenderer, path});
+            texturesPix.push_back(SDL2pp::Surface{path});
+        }
     }
 
     void resize() { resized = true; }
@@ -167,38 +170,36 @@ namespace GameRenderer {
     void drawFloor() {
         using namespace globals;
 
+        // we're only going to texture half the screen
         const int surfHeight = colHeight/2;
         Uint32 floorPixels[surfHeight][colCount];
         for (int line = 0; line < surfHeight; line++) {
+            // cast two rays for the left- and rightmost pixels
             const floor_ray r1 = castFloorRay(player.posX, player.posY,
                 player.angle + rayAngles[0], rayAnglesVert[line]),
             r2 = castFloorRay(player.posX, player.posY,
                 player.angle + rayAngles[colCount-1], rayAnglesVert[line]);
 
+            // calculate the map distance between each pixel
             const double stepX = (r2.intersectX - r1.intersectX) / colCount,
                          stepY = (r2.intersectY - r1.intersectY) / colCount;
 
+            // fill the entire line
             double floorPosX = r1.intersectX, floorPosY = r1.intersectY;
             for (int col = 0; col < colCount; col++) {
                 uint8_t textureX = fmod(floorPosX, 1) * 64,
                         textureY = fmod(floorPosY, 1) * 64;
                 if (textureX < 0) textureX += 64;
                 if (textureY < 0) textureY += 64;
-
-                Uint32 color = 0xff000000;
-                if (textureX >= 16)
-                    color = 0x00ff0000;
-                if (textureX >= 32)
-                    color = 0x0000ff00;
-                if (textureX >= 48)
-                    color = 0xffff0000;
                 
+                // TODO: account for different pixel formats
+                Uint32 color = ((Uint32*)texturesPix[14].Get()->pixels)[64*textureY + textureX];
                 floorPixels[line][col] = color;
                 floorPosX += stepX, floorPosY += stepY;
             }
         }
 
-        SDL2pp::Surface floorSurf(&floorPixels, colCount, surfHeight, 32, 4*colCount, 0xff000000, 0x00ff0000, 0x0000ff00, 0);
+        SDL2pp::Surface floorSurf(&floorPixels, colCount, surfHeight, 32, 4*colCount, 0x000000ff, 0x0000ff00, 0x00ff0000, 0);
         SDL2pp::Texture tex(*mainRenderer, floorSurf);
         mainRenderer->Copy(tex, SDL2pp::NullOpt, SDL_Point{0, surfHeight});
     }
@@ -314,7 +315,7 @@ namespace GameRenderer {
         
         return {
             .intersectX = posX + dx,
-            .intersectY = posY + dy
+            .intersectY = posY - dy
         };
     }
 }
