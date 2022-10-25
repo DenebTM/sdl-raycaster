@@ -19,9 +19,8 @@ namespace GameRenderer {
         uint8_t texturePos;
     } ray;
     typedef struct floor_ray_ret {
-        int tileHit;
-        uint8_t textureX;
-        uint8_t textureY;
+        double intersectX;
+        double intersectY;
     } floor_ray;
 
     SDL2pp::Renderer* mainRenderer;
@@ -170,20 +169,32 @@ namespace GameRenderer {
 
         const int surfHeight = colHeight/2;
         Uint32 floorPixels[surfHeight][colCount];
-        for (int y = 0; y < surfHeight; y++) {
-            for (int x = 0; x < colCount; x++) {
-                floor_ray r = castFloorRay(player.posX, player.posY,
-                    player.angle + rayAngles[x], rayAnglesVert[y]);
+        for (int line = 0; line < surfHeight; line++) {
+            const floor_ray r1 = castFloorRay(player.posX, player.posY,
+                player.angle + rayAngles[0], rayAnglesVert[line]),
+            r2 = castFloorRay(player.posX, player.posY,
+                player.angle + rayAngles[colCount-1], rayAnglesVert[line]);
+
+            const double stepX = (r2.intersectX - r1.intersectX) / colCount,
+                         stepY = (r2.intersectY - r1.intersectY) / colCount;
+
+            double floorPosX = r1.intersectX, floorPosY = r1.intersectY;
+            for (int col = 0; col < colCount; col++) {
+                uint8_t textureX = fmod(floorPosX, 1) * 64,
+                        textureY = fmod(floorPosY, 1) * 64;
+                if (textureX < 0) textureX += 64;
+                if (textureY < 0) textureY += 64;
 
                 Uint32 color = 0xff000000;
-                if (r.textureX >= 16)
+                if (textureX >= 16)
                     color = 0x00ff0000;
-                if (r.textureX >= 32)
+                if (textureX >= 32)
                     color = 0x0000ff00;
-                if (r.textureX >= 48)
+                if (textureX >= 48)
                     color = 0xffff0000;
                 
-                floorPixels[y][x] = color;
+                floorPixels[line][col] = color;
+                floorPosX += stepX, floorPosY += stepY;
             }
         }
 
@@ -301,22 +312,9 @@ namespace GameRenderer {
         double dx = d * sin(angleH),
                dy = d * cos(angleH);
         
-        double ix = posX + dx,
-               iy = posY + dy;
-
-        int tile = -1;
-        if (ix >= 0 && ix < map.width && iy >= 0 && iy < map.height)
-            tile = map.tiles[(int)ix][(int)iy];
-
-        uint8_t tx = fmod(ix, 1) * 64,
-                ty = fmod(iy, 1) * 64;
-        if (tx < 0) tx += 64;
-        if (ty < 0) ty += 64;
-        
         return {
-            .tileHit = tile,
-            .textureX = tx,
-            .textureY = ty
+            .intersectX = posX + dx,
+            .intersectY = posY + dy
         };
     }
 }
