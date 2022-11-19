@@ -16,6 +16,7 @@ namespace GameRenderer {
     typedef struct ray_ret {
         double rayDist;
         wall wallDir;
+        uint8_t textureId;
         uint8_t texturePos;
     } ray;
     typedef struct floor_ray_ret {
@@ -220,7 +221,7 @@ namespace GameRenderer {
             const double rayAngle = player.angle + rayAngles[x];
             ray r = castRay(player.posX, player.posY, rayAngle);
             int wallHeight = projplaneDist / r.rayDist / cos(rayAngles[x]);
-            drawWall(x, wallHeight, r.texturePos, 0 + (r.wallDir >= E));
+            drawWall(x, wallHeight, r.texturePos, r.textureId + (r.wallDir >= E));
         }
     }
 
@@ -230,7 +231,8 @@ namespace GameRenderer {
         angle = fmod(angle, M_PI * 2);
 
         double rayStepX, rayStepY,
-               rayPosFinalX, rayPosFinalY;
+               rayPosFinalX1, rayPosFinalY1,
+               rayPosFinalX2, rayPosFinalY2;
 
         // find horizontal walls
         double rayDistHoriz = INFINITY;
@@ -255,7 +257,8 @@ namespace GameRenderer {
             const double rayDistHorizX = rayPosX - posX,
                          rayDistHorizY = rayPosY - posY;
             rayDistHoriz = sqrt(pow(rayDistHorizX, 2) + pow(rayDistHorizY, 2));
-            rayPosFinalX = rayPosX;
+            rayPosFinalX1 = rayPosX;
+            rayPosFinalY1 = rayPosY;
         }
 
         // find vertical walls
@@ -281,27 +284,32 @@ namespace GameRenderer {
             const double rayDistVertX = rayPosX - posX,
                          rayDistVertY = rayPosY - posY;
             rayDistVert = sqrt(pow(rayDistVertX, 2) + pow(rayDistVertY, 2));
-            rayPosFinalY = rayPosY;
+            rayPosFinalX2 = rayPosX;
+            rayPosFinalY2 = rayPosY;
         }
 
         double rDist;
         wall wDir;
+        uint8_t tId = 0;
         uint8_t tPos;
         if (rayDistHoriz < rayDistVert) {
             rDist = rayDistHoriz;
             wDir = rayStepY < 0 ? N : S;
-            tPos = fmod(rayPosFinalX, 1) * TEXTURE_RES;
+            tId = globals::map.tiles[(int)rayPosFinalX1][(int)rayPosFinalY1 - ((angle < M_PI_2 || angle >= M_PI + M_PI_2) ? 1 : 0)];
+            tPos = fmod(rayPosFinalX1, 1) * TEXTURE_RES;
             if (wDir == S) tPos = TEXTURE_RES - tPos - 1;
         } else {
             rDist = rayDistVert;
             wDir = rayStepX < 0 ? W : E;
-            tPos = fmod(rayPosFinalY, 1) * TEXTURE_RES;
+            tId = globals::map.tiles[(int)rayPosFinalX2 - (angle >= M_PI ? 1 : 0)][(int)rayPosFinalY2];
+            tPos = fmod(rayPosFinalY2, 1) * TEXTURE_RES;
             if (wDir == W) tPos = TEXTURE_RES - tPos - 1;
         }
         
         return {
             .rayDist = rDist,
             .wallDir = wDir,
+            .textureId = (unsigned char)((tId-1)*2),
             .texturePos = tPos
         };
     }

@@ -6,6 +6,6 @@ namespace globals {
     inline bool stop = false;
     inline double deltaTime = 0.0;
 
-    inline Map map = Map(25, 25);
-    inline Player player = Player(14.5, 18.5);
+    inline Map map("maps/map01.txt");
+    inline Player player(map.playerStartX + 0.5, map.playerStartY + 0.5);
 }
