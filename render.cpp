@@ -3,6 +3,8 @@
 #include <filesystem>
 #include <string>
 #include <iostream>
+#include <pthread.h>
+
 #include <SDL2pp/Texture.hh>
 #include <SDL2pp/Surface.hh>
 #include <SDL2pp/Point.hh>
@@ -32,11 +34,13 @@ namespace GameRenderer {
     int colHeight = 500;
     double FOV = M_PI / 3 /* 60° */,
            projplaneDist = (colCount / 2) / tan(FOV/2);
+
+    Uint32* floorPixels = new Uint32[colCount * colHeight / 2];
+    SDL2pp::Surface floorSurf = SDL2pp::Surface{floorPixels, colCount, colHeight/2, 32, 4*colCount, 0x000000ff, 0x0000ff00, 0x00ff0000, 0};
     
     std::vector<double> rayAngles;
-    void fillRayAngles();
     std::vector<double> rayAnglesVert;
-    void fillRayAnglesVert();
+    void fillRayAngles();
     void loadTextures();
     void drawStatusBar();
     void drawPlayer();
@@ -47,11 +51,30 @@ namespace GameRenderer {
     ray castRay(const double posX, const double posY, double angle);
     floor_ray castFloorRay(const double posX, const double posY, double angleH, double angleV);
 
+    #define RENDER_THREAD_COUNT 8
+    bool shall_exit = false;
+    pthread_t renderThreads[RENDER_THREAD_COUNT];
+    pthread_barrier_t renderStart;
+    pthread_barrier_t renderDone;
+    void drawFloorPart(uintptr_t threadnum);
+    void* renderWorker(void* threadnum) {
+        while (!shall_exit) {
+            // wait until there is work to do
+            pthread_barrier_wait(&renderStart);
+
+            drawFloorPart((uintptr_t)threadnum);
+
+            // signal that work has been done
+            pthread_barrier_wait(&renderDone);
+        }
+
+        return NULL;
+    }
+
     void init(SDL2pp::Renderer& renderer) {
         if (firstRun) {
             mainRenderer = &renderer;
             loadTextures();
-            firstRun = false;
         }
 
         SDL2pp::Point p = mainRenderer->GetOutputSize();
@@ -60,11 +83,33 @@ namespace GameRenderer {
         FOV = (double)colCount / colHeight * 0.655;
         projplaneDist = (colCount / 2) / tan(FOV/2);
         fillRayAngles();
-        fillRayAnglesVert();
+
+        delete floorPixels;
+        floorPixels = new Uint32[colCount * colHeight / 2];
+        floorSurf = SDL2pp::Surface{floorPixels, colCount, colHeight/2, 32, 4*colCount, 0x000000ff, 0x0000ff00, 0x00ff0000, 0};
+
+        if (firstRun) {
+            pthread_barrierattr_t ptba;
+            pthread_barrierattr_init(&ptba);
+            pthread_barrier_init(&renderStart, &ptba, RENDER_THREAD_COUNT+1);
+            pthread_barrier_init(&renderDone, &ptba, RENDER_THREAD_COUNT+1);
+            pthread_attr_t pta;
+            pthread_attr_init(&pta);
+            for (uintptr_t i = 0; i < RENDER_THREAD_COUNT; i++)
+                pthread_create(&renderThreads[i], &pta, &renderWorker, (void*)i);
+
+            firstRun = false;
+        }
     }
 
-    // angular ray offsets aren't consistent across the entire screen,
-    // so all angles are pre-calculated
+    void destroy() {
+        shall_exit = true;
+        pthread_barrier_wait(&renderStart);
+        pthread_barrier_wait(&renderDone);
+        delete floorPixels;
+    }
+
+    // the angles between each scanlines/columns aren't consistent, so these are pre-calculated
     void fillRayAngles() {
         rayAngles.clear();
         rayAngles.reserve(colCount);
@@ -72,9 +117,7 @@ namespace GameRenderer {
             double l = -(colCount / 2) + 0.5 + i;
             rayAngles[i] = atan(l / projplaneDist);
         }
-    }
 
-    void fillRayAnglesVert() {
         rayAnglesVert.clear();
         rayAnglesVert.reserve(colHeight/2);
         for (int i = 0; i < colHeight/2; i++) {
@@ -168,13 +211,14 @@ namespace GameRenderer {
         mainRenderer->SetDrawColor(oldDrawColor);
     }
 
-    void drawFloor() {
+    void drawFloorPart(uintptr_t threadnum) {
         using namespace globals;
+        Uint32* floorTexturePixels = (Uint32*)texturesPix[14].Get()->pixels;
 
-        // we're only going to texture half the screen
-        const int surfHeight = colHeight/2;
-        Uint32 floorPixels[surfHeight][colCount];
-        for (int line = 0; line < surfHeight; line++) {
+        const int surfHeight = floorSurf.GetHeight();
+        const int startLine = (surfHeight / RENDER_THREAD_COUNT) * threadnum,
+                  endLine = startLine + (surfHeight / RENDER_THREAD_COUNT);
+        for (int line = startLine; line < endLine; line++) {
             // cast two rays for the left- and rightmost pixels
             const floor_ray r1 = castFloorRay(player.posX, player.posY,
                 player.angle + rayAngles[0], rayAnglesVert[line]),
@@ -193,16 +237,24 @@ namespace GameRenderer {
                 if (textureX < 0) textureX += 64;
                 if (textureY < 0) textureY += 64;
                 
-                // TODO: account for different pixel formats
-                Uint32 color = ((Uint32*)texturesPix[14].Get()->pixels)[64*textureY + textureX];
-                floorPixels[line][col] = color;
+                // TODO: account for different pixel formats and texture sizes
+                Uint32 color = floorTexturePixels[64*textureY + textureX];
+                floorPixels[line*colCount + col] = color;
                 floorPosX += stepX, floorPosY += stepY;
             }
         }
+    }
 
-        SDL2pp::Surface floorSurf(&floorPixels, colCount, surfHeight, 32, 4*colCount, 0x000000ff, 0x0000ff00, 0x00ff0000, 0);
-        SDL2pp::Texture tex(*mainRenderer, floorSurf);
-        mainRenderer->Copy(tex, SDL2pp::NullOpt, SDL_Point{0, surfHeight});
+    void drawFloor() {
+        using namespace globals;
+        Uint32* floorTexturePixels = (Uint32*)texturesPix[14].Get()->pixels;
+
+        const int surfHeight = floorSurf.GetHeight();
+        pthread_barrier_wait(&renderStart);
+        pthread_barrier_wait(&renderDone);
+
+        SDL2pp::Texture floorTex(*mainRenderer, floorSurf);
+        mainRenderer->Copy(floorTex, SDL2pp::NullOpt, SDL_Point{0, surfHeight});
     }
 
     void drawWall(int x, int h, char texturePos, char textureId) {

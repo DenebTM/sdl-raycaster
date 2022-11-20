@@ -49,5 +49,6 @@ int main(int, char**) {
         GameRenderer::render();
     }
 
+    GameRenderer::destroy();
     return EXIT_SUCCESS;
 }
