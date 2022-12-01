@@ -1,4 +1,6 @@
 #include <cmath>
+constexpr double _2pi = 2*M_PI;
+constexpr double _3pi4 = M_PI + M_PI_2;
 #include <vector>
 #include <filesystem>
 #include <string>
@@ -115,14 +117,14 @@ namespace GameRenderer {
         rayAngles.reserve(colCount);
         for (int i = 0; i < colCount; i++) {
             double l = -(colCount / 2) + 0.5 + i;
-            rayAngles[i] = atan(l / projplaneDist);
+            rayAngles[i] = fmod(atan(l / projplaneDist) + _2pi, _2pi);
         }
 
         rayAnglesVert.clear();
         rayAnglesVert.reserve(colHeight/2);
         for (int i = 0; i < colHeight/2; i++) {
             double h = 0.5 + i;
-            rayAnglesVert[i] = atan(h / projplaneDist);
+            rayAnglesVert[i] = fmod(atan(h / projplaneDist) + _2pi, _2pi);
         }
     }
 
@@ -232,8 +234,8 @@ namespace GameRenderer {
             // fill the entire line
             double floorPosX = r1.intersectX, floorPosY = r1.intersectY;
             for (int col = 0; col < colCount; col++) {
-                uint8_t textureX = fmod(floorPosX, 1) * 64,
-                        textureY = fmod(floorPosY, 1) * 64;
+                uint8_t textureX = (int)(floorPosX * TEXTURE_RES) % TEXTURE_RES,
+                        textureY = (int)(floorPosY * TEXTURE_RES) % TEXTURE_RES;
                 if (textureX < 0) textureX += 64;
                 if (textureY < 0) textureY += 64;
                 
@@ -279,8 +281,7 @@ namespace GameRenderer {
 
     // returns distance to the nearest wall
     ray castRay(const double posX, const double posY, double angle) {
-        while (angle < 0) angle += M_PI * 2;
-        angle = fmod(angle, M_PI * 2);
+        while (angle > _2pi) angle -= _2pi;
 
         double rayStepX, rayStepY,
                rayPosFinalX1, rayPosFinalY1,
@@ -288,11 +289,11 @@ namespace GameRenderer {
 
         // find horizontal walls
         double rayDistHoriz = INFINITY;
-        if (angle != M_PI_2 && angle != M_PI + M_PI_2) {
-            rayStepY = (angle < M_PI_2 || angle > M_PI + M_PI_2) ? -1 : 1;
+        if (angle != M_PI_2 && angle != _3pi4) {
+            rayStepY = (angle < M_PI_2 || angle > _3pi4) ? -1 : 1;
             rayStepX = -rayStepY * tan(angle);
             
-            double stepInitialY = rayStepY < 0 ? fmod(-posY, 1) : 1 - fmod(posY, 1),
+            double stepInitialY = rayStepY < 0 ? -(posY - (int)posY) : 1 - (posY - (int)posY),
                    stepInitialX = rayStepX * stepInitialY / rayStepY;
             double rayPosX = posX + stepInitialX, rayPosY = posY + stepInitialY;
 
@@ -308,7 +309,7 @@ namespace GameRenderer {
             }
             const double rayDistHorizX = rayPosX - posX,
                          rayDistHorizY = rayPosY - posY;
-            rayDistHoriz = sqrt(pow(rayDistHorizX, 2) + pow(rayDistHorizY, 2));
+            rayDistHoriz = sqrt(rayDistHorizX*rayDistHorizX + rayDistHorizY*rayDistHorizY);
             rayPosFinalX1 = rayPosX;
             rayPosFinalY1 = rayPosY;
         }
@@ -319,7 +320,7 @@ namespace GameRenderer {
             rayStepX = (angle < M_PI) ? 1 : -1;
             rayStepY = -rayStepX / tan(angle);
             
-            double stepInitialX = rayStepX < 0 ? fmod(-posX, 1) : 1 - fmod(posX, 1),
+            double stepInitialX = rayStepX < 0 ? -(posX - (int)posX) : 1 - (posX - (int)posX),
                    stepInitialY = rayStepY * stepInitialX / rayStepX;
             double rayPosX = posX + stepInitialX, rayPosY = posY + stepInitialY;
 
@@ -347,14 +348,14 @@ namespace GameRenderer {
         if (rayDistHoriz < rayDistVert) {
             rDist = rayDistHoriz;
             wDir = rayStepY < 0 ? N : S;
-            tId = globals::map.tiles[(int)rayPosFinalX1][(int)rayPosFinalY1 - ((angle < M_PI_2 || angle >= M_PI + M_PI_2) ? 1 : 0)];
-            tPos = fmod(rayPosFinalX1, 1) * TEXTURE_RES;
+            tId = globals::map.tiles[(int)rayPosFinalX1][(int)rayPosFinalY1 - ((angle < M_PI_2 || angle >= _3pi4) ? 1 : 0)];
+            tPos = (int)(rayPosFinalX1 * TEXTURE_RES) % TEXTURE_RES;
             if (wDir == S) tPos = TEXTURE_RES - tPos - 1;
         } else {
             rDist = rayDistVert;
             wDir = rayStepX < 0 ? W : E;
             tId = globals::map.tiles[(int)rayPosFinalX2 - (angle >= M_PI ? 1 : 0)][(int)rayPosFinalY2];
-            tPos = fmod(rayPosFinalY2, 1) * TEXTURE_RES;
+            tPos = (int)(rayPosFinalY2 * TEXTURE_RES) % TEXTURE_RES;
             if (wDir == W) tPos = TEXTURE_RES - tPos - 1;
         }
         
