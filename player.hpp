@@ -2,7 +2,7 @@
 
 #include "mapObject.hpp"
 
-#define PLAYER_VELOCITY_BASE 5.0
+#define PLAYER_VELOCITY_BASE 6.0
 #define PLAYER_ANGVEL_BASE 2.5
 #define PLAYER_SIZE 0.5
 

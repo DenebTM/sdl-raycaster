@@ -19,6 +19,11 @@ void Player::doTick() {
     double velX = (fVel * sin(angle) + sVel * cos(angle)) * velMult,
            velY = (-fVel * cos(angle) + sVel * sin(angle)) * velMult;
 
+    if (fVel && sVel) {
+        velX /= sqrt(2);
+        velY /= sqrt(2);
+    }
+
     double newPosX = posX + velX * globals::deltaTime,
            newPosY = posY + velY * globals::deltaTime;
     
