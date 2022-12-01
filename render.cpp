@@ -53,7 +53,6 @@ namespace GameRenderer {
     ray castRay(const double posX, const double posY, double angle);
     floor_ray castFloorRay(const double posX, const double posY, double angleH, double angleV);
 
-    #define RENDER_THREAD_COUNT 8
     bool shall_exit = false;
     pthread_t renderThreads[RENDER_THREAD_COUNT];
     pthread_barrier_t renderStart;

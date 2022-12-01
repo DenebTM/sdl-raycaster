@@ -8,6 +8,9 @@
 #define MAP_POS_Y colHeight
 
 #define TEXTURE_RES 64
+#ifndef RENDER_THEAD_COUNT
+#define RENDER_THREAD_COUNT 1
+#endif
 
 namespace GameRenderer {
     void init(SDL2pp::Renderer& renderer);
