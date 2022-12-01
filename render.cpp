@@ -84,7 +84,7 @@ namespace GameRenderer {
         projplaneDist = (colCount / 2) / tan(FOV/2);
         fillRayAngles();
 
-        delete floorPixels;
+        delete[] floorPixels;
         floorPixels = new Uint32[colCount * colHeight / 2];
         floorSurf = SDL2pp::Surface{floorPixels, colCount, colHeight/2, 32, 4*colCount, 0x000000ff, 0x0000ff00, 0x00ff0000, 0};
 
@@ -106,7 +106,7 @@ namespace GameRenderer {
         shall_exit = true;
         pthread_barrier_wait(&renderStart);
         pthread_barrier_wait(&renderDone);
-        delete floorPixels;
+        delete[] floorPixels;
     }
 
     // the angles between each scanlines/columns aren't consistent, so these are pre-calculated
