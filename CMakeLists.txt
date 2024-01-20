@@ -6,7 +6,7 @@ project(sdl-raycaster VERSION 0.1.0)
 set(CMAKE_BUILD_DIR ${CMAKE_SOURCE_DIR}/build)
 set(EXECUTABLE_OUTPUT_PATH ${CMAKE_SOURCE_DIR})
 
-set(SOURCES main.cpp events.cpp player.cpp map.cpp render.cpp)
+file(GLOB SOURCES src/*.cpp)
 add_executable(sdl-raycaster ${SOURCES})
 
 # set(CPACK_PROJECT_NAME ${PROJECT_NAME})
